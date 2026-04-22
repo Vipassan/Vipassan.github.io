@@ -213,7 +213,7 @@
 </head>
 <body>
 
-  <!-- Видео-фон (замените src на свой файл) -->
+  <!-- Видео-фон -->
   <video id="bg-video" autoplay loop muted playsinline>
     <source src="1655315665-1655315665-diamond-houseki-no-kuni-hd-live-wallpaper-for-pc.mp4" type="video/mp4">
   </video>
@@ -256,7 +256,7 @@
   <audio id="audio" crossorigin="anonymous"></audio>
 
   <script>
-    // 📁 Плейлист (замените ссылки на свои MP3)
+    // 📁 Плейлист
     const playlist = [
       { title: "Crystal Light", artist: "Ambient Flow", cover: "https://picsum.photos/seed/track1/400/400", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
       { title: "White Noise", artist: "Clean Beats", cover: "https://picsum.photos/seed/track2/400/400", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
@@ -293,6 +293,29 @@
       return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
 
+    // 🎛️ Инициализация Web Audio API
+    const initAudioContext = () => {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 128;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      // Создаем source каждый раз при воспроизведении
+      if (!source || source.mediaElement !== audio) {
+        try {
+          source = audioCtx.createMediaElementSource(audio);
+          source.connect(analyser);
+          analyser.connect(audioCtx.destination);
+        } catch (e) {
+          console.error('Error creating audio source:', e);
+        }
+      }
+    };
+
     //  Загрузка трека
     const loadTrack = (index) => {
       const track = playlist[index];
@@ -303,42 +326,33 @@
       progressFill.style.width = '0%';
       currentTimeEl.textContent = '0:00';
       durationEl.textContent = '0:00';
-    };
-
-    // 🎛️ Инициализация Web Audio API (требует жеста пользователя)
-    const initAudioContext = () => {
-      if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 128;
-        dataArray = new Uint8Array(analyser.frequencyBinCount);
-        source = audioCtx.createMediaElementSource(audio);
-        source.connect(analyser);
-        analyser.connect(audioCtx.destination);
+      
+      // Сбрасываем source при смене трека
+      if (source) {
+        source.disconnect();
+        source = null;
       }
-      if (audioCtx.state === 'suspended') audioCtx.resume();
     };
 
     // 📊 Отрисовка эквалайзера
     const drawEqualizer = () => {
-      if (!analyser) return;
+      if (!analyser || !isPlaying) return;
       requestAnimationFrame(drawEqualizer);
       analyser.getByteFrequencyData(dataArray);
       
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const barWidth = (canvas.width / dataArray.length) * 2.2;
+      const barCount = dataArray.length;
+      const barWidth = (canvas.width / barCount) * 2.2;
       let x = 0;
       
-      for (let i = 0; i < dataArray.length; i++) {
+      for (let i = 0; i < barCount; i++) {
         const barHeight = (dataArray[i] / 255) * canvas.height * 0.9;
         const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
         gradient.addColorStop(0, '#4f46e5');
         gradient.addColorStop(1, '#818cf8');
         
         ctx.fillStyle = gradient;
-        ctx.beginPath();
-        ctx.roundRect(x, canvas.height - barHeight, barWidth - 2, barHeight, 3);
-        ctx.fill();
+        ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
         x += barWidth;
       }
     };
@@ -346,21 +360,33 @@
     // ▶️⏸️ Управление
     const togglePlay = () => {
       initAudioContext();
-      if (isPlaying) audio.pause();
-      else audio.play();
+      if (isPlaying) {
+        audio.pause();
+      } else {
+        audio.play().catch(e => {
+          console.error('Playback failed:', e);
+          alert('Не удалось воспроизвести аудио. Проверьте консоль.');
+        });
+      }
     };
 
     const updatePlayState = (state) => {
       isPlaying = state;
       playIcon.className = state ? 'fas fa-pause' : 'fas fa-play';
       cover.classList.toggle('playing', state);
-      if (state) drawEqualizer();
+      if (state) {
+        drawEqualizer();
+      } else {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
     };
 
     const changeTrack = (dir) => {
       currentTrack = (currentTrack + dir + playlist.length) % playlist.length;
       loadTrack(currentTrack);
-      if (isPlaying) audio.play();
+      if (isPlaying) {
+        audio.play().catch(e => console.error('Playback failed:', e));
+      }
     };
 
     // 📈 События аудио
@@ -378,6 +404,11 @@
     audio.addEventListener('play', () => updatePlayState(true));
     audio.addEventListener('pause', () => updatePlayState(false));
     audio.addEventListener('ended', () => changeTrack(1));
+    
+    audio.addEventListener('error', (e) => {
+      console.error('Audio error:', e);
+      alert('Ошибка загрузки аудио');
+    });
 
     // 🖱️ Интерактив
     playBtn.addEventListener('click', togglePlay);
