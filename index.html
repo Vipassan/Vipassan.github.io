@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Музыкальный плеер</title>
+  <!-- Иконки -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --bg-gradient: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      --card-bg: rgba(255, 255, 255, 0.08);
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0b0;
+      --accent: #ff6b6b;
+      --accent-hover: #ff4747;
+      --progress-bg: rgba(255, 255, 255, 0.2);
+      --shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: var(--bg-gradient);
+      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      color: var(--text-primary);
+      padding: 20px;
+    }
+
+    .player-wrapper {
+      width: 100%;
+      max-width: 360px;
+    }
+
+    .player-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      padding: 28px 24px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .cover {
+      width: 220px;
+      height: 220px;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    .cover img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+
+    .cover.playing img {
+      animation: breathe 3s infinite ease-in-out;
+    }
+
+    .track-info { text-align: center; }
+    .track-info h2 { font-size: 1.35rem; font-weight: 600; margin-bottom: 4px; }
+    .track-info p { color: var(--text-secondary); font-size: 0.95rem; }
+
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: var(--progress-bg);
+      border-radius: 3px;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      border-radius: 3px;
+      transition: width 0.1s linear;
+      position: relative;
+    }
+
+    .progress-fill::after {
+      content: '';
+      position: absolute;
+      right: -6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 12px;
+      height: 12px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .progress-bar:hover .progress-fill::after { opacity: 1; }
+
+    .time-display {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .btn {
+      background: none;
+      border: none;
+      color: var(--text-primary);
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn:hover { color: var(--accent); transform: scale(1.1); }
+
+    .play-btn {
+      width: 56px;
+      height: 56px;
+      background: var(--accent);
+      border-radius: 50%;
+      font-size: 1.5rem;
+      box-shadow: 0 6px 15px rgba(255, 107, 107, 0.4);
+    }
+
+    .play-btn:hover { background: var(--accent-hover); color: #fff; transform: scale(1.08); }
+
+    .volume-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      padding-top: 4px;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--progress-bg);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: var(--accent);
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+
+    @keyframes breathe {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+
+    @media (max-width: 400px) {
+      .cover { width: 180px; height: 180px; }
+      .player-card { padding: 20px 16px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="player-wrapper">
+    <div class="player-card">
+      <div class="cover" id="cover">
+        <img src="https://picsum.photos/seed/album1/400/400" alt="Обложка" id="cover-img">
+      </div>
+      <div class="track-info">
+        <h2 id="title">Загрузка...</h2>
+        <p id="artist">—</p>
+      </div>
+
+      <div class="progress-bar" id="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="time-display">
+        <span id="current-time">0:00</span>
+        <span id="duration">0:00</span>
+      </div>
+
+      <div class="controls">
+        <button class="btn" id="prev" title="Предыдущий"><i class="fas fa-backward-step"></i></button>
+        <button class="btn play-btn" id="play" title="Воспроизвести"><i class="fas fa-play"></i></button>
+        <button class="btn" id="next" title="Следующий"><i class="fas fa-forward-step"></i></button>
+      </div>
+
+      <div class="volume-wrap">
+        <i class="fas fa-volume-high" style="color: var(--text-secondary); font-size: 0.9rem;"></i>
+        <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8">
+      </div>
+    </div>
+  </div>
+
+  <audio id="audio"></audio>
+
+  <script>
+    // 📁 Плейлист (замените ссылки на свои)
+    const playlist = [
+      { title: "Midnight Drive", artist: "Synthwave Lab", cover: "https://picsum.photos/seed/track1/400/400", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
+      { title: "Neon Rain", artist: "Cyber Pulse", cover: "https://picsum.photos/seed/track2/400/400", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
+      { title: "Ocean Breeze", artist: "Chill Horizon", cover: "https://picsum.photos/seed/track3/400/400", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" }
+    ];
+
+    // 🔧 DOM-элементы
+    const audio = document.getElementById('audio');
+    const cover = document.getElementById('cover');
+    const coverImg = document.getElementById('cover-img');
+    const titleEl = document.getElementById('title');
+    const artistEl = document.getElementById('artist');
+    const playBtn = document.getElementById('play');
+    const prevBtn = document.getElementById('prev');
+    const nextBtn = document.getElementById('next');
+    const progressBar = document.getElementById('progress-bar');
+    const progressFill = document.getElementById('progress-fill');
+    const currentTimeEl = document.getElementById('current-time');
+    const durationEl = document.getElementById('duration');
+    const volumeSlider = document.getElementById('volume');
+    const playIcon = playBtn.querySelector('i');
+
+    let currentTrack = 0;
+    let isPlaying = false;
+
+    // 📥 Форматирование времени
+    const formatTime = (time) => {
+      if (isNaN(time)) return '0:00';
+      const m = Math.floor(time / 60);
+      const s = Math.floor(time % 60);
+      return `${m}:${s < 10 ? '0' : ''}${s}`;
+    };
+
+    // 🎵 Загрузка трека
+    const loadTrack = (index) => {
+      const track = playlist[index];
+      titleEl.textContent = track.title;
+      artistEl.textContent = track.artist;
+      coverImg.src = track.cover;
+      audio.src = track.src;
+      progressFill.style.width = '0%';
+      currentTimeEl.textContent = '0:00';
+      durationEl.textContent = '0:00';
+    };
+
+    // ▶️⏸️ Переключение воспроизведения
+    const togglePlay = () => {
+      if (isPlaying) audio.pause();
+      else audio.play();
+    };
+
+    const updatePlayState = (state) => {
+      isPlaying = state;
+      playIcon.className = state ? 'fas fa-pause' : 'fas fa-play';
+      cover.classList.toggle('playing', state);
+    };
+
+    // 🔄 Переключение треков
+    const changeTrack = (dir) => {
+      currentTrack = (currentTrack + dir + playlist.length) % playlist.length;
+      loadTrack(currentTrack);
+      if (isPlaying) audio.play();
+    };
+
+    // 📊 Обновление прогресса
+    audio.addEventListener('timeupdate', () => {
+      if (!audio.duration) return;
+      const percent = (audio.currentTime / audio.duration) * 100;
+      progressFill.style.width = `${percent}%`;
+      currentTimeEl.textContent = formatTime(audio.currentTime);
+    });
+
+    // 📏 Установка длительности
+    audio.addEventListener('loadedmetadata', () => {
+      durationEl.textContent = formatTime(audio.duration);
+      audio.volume = volumeSlider.value;
+    });
+
+    // 🖱️ Клик по прогресс-бару
+    progressBar.addEventListener('click', (e) => {
+      if (!audio.duration) return;
+      const rect = progressBar.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      audio.currentTime = (clickX / rect.width) * audio.duration;
+    });
+
+    // 🎚️ Громкость
+    volumeSlider.addEventListener('input', (e) => {
+      audio.volume = e.target.value;
+    });
+
+    // 🔔 События аудио
+    audio.addEventListener('play', () => updatePlayState(true));
+    audio.addEventListener('pause', () => updatePlayState(false));
+    audio.addEventListener('ended', () => changeTrack(1));
+
+    // 🖱️ Кнопки
+    playBtn.addEventListener('click', togglePlay);
+    prevBtn.addEventListener('click', () => changeTrack(-1));
+    nextBtn.addEventListener('click', () => changeTrack(1));
+
+    // 🚀 Инициализация
+    loadTrack(currentTrack);
+  </script>
+</body>
+</html>
