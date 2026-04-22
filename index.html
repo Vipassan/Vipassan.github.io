@@ -3,19 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Музыкальный плеер</title>
-  <!-- Иконки -->
+  <title>White Music Player</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root {
-      --bg-gradient: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
-      --card-bg: rgba(255, 255, 255, 0.08);
-      --text-primary: #ffffff;
-      --text-secondary: #a0a0b0;
-      --accent: #ff6b6b;
-      --accent-hover: #ff4747;
-      --progress-bg: rgba(255, 255, 255, 0.2);
-      --shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+      --card-bg: rgba(255, 255, 255, 0.88);
+      --text-primary: #111827;
+      --text-secondary: #6b7280;
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --progress-bg: #e5e7eb;
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+      --radius: 22px;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -25,38 +24,56 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      background: var(--bg-gradient);
-      font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
       color: var(--text-primary);
-      padding: 20px;
+      overflow: hidden;
+    }
+
+    /* Видео-фон */
+    #bg-video {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: -2;
+    }
+
+    /* Затемнение фона для контраста */
+    .overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(255, 255, 255, 0.25);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      z-index: -1;
     }
 
     .player-wrapper {
       width: 100%;
-      max-width: 360px;
+      max-width: 340px;
+      padding: 20px;
     }
 
     .player-card {
       background: var(--card-bg);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 24px;
-      padding: 28px 24px;
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      border-radius: var(--radius);
+      padding: 26px 20px;
       box-shadow: var(--shadow);
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 22px;
+      gap: 18px;
     }
 
     .cover {
-      width: 220px;
-      height: 220px;
-      border-radius: 18px;
+      width: 200px;
+      height: 200px;
+      border-radius: 16px;
       overflow: hidden;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
-      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.15);
+      transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
 
     .cover img {
@@ -67,12 +84,20 @@
     }
 
     .cover.playing img {
-      animation: breathe 3s infinite ease-in-out;
+      animation: pulse 3s infinite ease-in-out;
     }
 
     .track-info { text-align: center; }
-    .track-info h2 { font-size: 1.35rem; font-weight: 600; margin-bottom: 4px; }
-    .track-info p { color: var(--text-secondary); font-size: 0.95rem; }
+    .track-info h2 { font-size: 1.25rem; font-weight: 600; margin-bottom: 3px; }
+    .track-info p { color: var(--text-secondary); font-size: 0.9rem; }
+
+    /* Эквалайзер */
+    #equalizer {
+      width: 100%;
+      height: 50px;
+      border-radius: 8px;
+      background: rgba(245, 245, 247, 0.8);
+    }
 
     .progress-bar {
       width: 100%;
@@ -96,14 +121,12 @@
     .progress-fill::after {
       content: '';
       position: absolute;
-      right: -6px;
-      top: 50%;
+      right: -6px; top: 50%;
       transform: translateY(-50%);
-      width: 12px;
-      height: 12px;
+      width: 12px; height: 12px;
       background: #fff;
       border-radius: 50%;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      box-shadow: 0 2px 5px rgba(0,0,0,0.25);
       opacity: 0;
       transition: opacity 0.2s;
     }
@@ -122,7 +145,7 @@
     .controls {
       display: flex;
       align-items: center;
-      gap: 24px;
+      gap: 22px;
     }
 
     .btn {
@@ -130,25 +153,26 @@
       border: none;
       color: var(--text-primary);
       cursor: pointer;
-      font-size: 1.2rem;
+      font-size: 1.15rem;
       transition: all 0.2s ease;
       display: flex;
       align-items: center;
       justify-content: center;
+      padding: 8px;
     }
 
     .btn:hover { color: var(--accent); transform: scale(1.1); }
 
     .play-btn {
-      width: 56px;
-      height: 56px;
+      width: 52px; height: 52px;
       background: var(--accent);
       border-radius: 50%;
-      font-size: 1.5rem;
-      box-shadow: 0 6px 15px rgba(255, 107, 107, 0.4);
+      font-size: 1.4rem;
+      color: #fff;
+      box-shadow: 0 5px 12px rgba(79, 70, 229, 0.35);
     }
 
-    .play-btn:hover { background: var(--accent-hover); color: #fff; transform: scale(1.08); }
+    .play-btn:hover { background: var(--accent-hover); color: #fff; transform: scale(1.06); }
 
     .volume-wrap {
       display: flex;
@@ -169,26 +193,31 @@
 
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 14px;
-      height: 14px;
+      width: 14px; height: 14px;
       background: var(--accent);
       border-radius: 50%;
       cursor: pointer;
       box-shadow: 0 2px 5px rgba(0,0,0,0.2);
     }
 
-    @keyframes breathe {
+    @keyframes pulse {
       0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.03); }
+      50% { transform: scale(1.025); }
     }
 
     @media (max-width: 400px) {
-      .cover { width: 180px; height: 180px; }
-      .player-card { padding: 20px 16px; }
+      .cover { width: 170px; height: 170px; }
+      .player-card { padding: 20px 14px; }
     }
   </style>
 </head>
 <body>
+
+  <!-- Видео-фон (замените src на свой файл) -->
+  <video id="bg-video" autoplay loop muted playsinline>
+    <source src="1655315665-1655315665-diamond-houseki-no-kuni-hd-live-wallpaper-for-pc.mp4" type="video/mp4">
+  </video>
+  <div class="overlay"></div>
 
   <div class="player-wrapper">
     <div class="player-card">
@@ -199,6 +228,9 @@
         <h2 id="title">Загрузка...</h2>
         <p id="artist">—</p>
       </div>
+
+      <!-- Графический эквалайзер -->
+      <canvas id="equalizer" width="300" height="50"></canvas>
 
       <div class="progress-bar" id="progress-bar">
         <div class="progress-fill" id="progress-fill"></div>
@@ -215,23 +247,23 @@
       </div>
 
       <div class="volume-wrap">
-        <i class="fas fa-volume-high" style="color: var(--text-secondary); font-size: 0.9rem;"></i>
+        <i class="fas fa-volume-high" style="color: var(--text-secondary); font-size: 0.85rem;"></i>
         <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8">
       </div>
     </div>
   </div>
 
-  <audio id="audio"></audio>
+  <audio id="audio" crossorigin="anonymous"></audio>
 
   <script>
-    // 📁 Плейлист (замените ссылки на свои)
+    // 📁 Плейлист (замените ссылки на свои MP3)
     const playlist = [
-      { title: "Midnight Drive", artist: "Synthwave Lab", cover: "https://picsum.photos/seed/track1/400/400", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
-      { title: "Neon Rain", artist: "Cyber Pulse", cover: "https://picsum.photos/seed/track2/400/400", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
-      { title: "Ocean Breeze", artist: "Chill Horizon", cover: "https://picsum.photos/seed/track3/400/400", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" }
+      { title: "Crystal Light", artist: "Ambient Flow", cover: "https://picsum.photos/seed/track1/400/400", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" },
+      { title: "White Noise", artist: "Clean Beats", cover: "https://picsum.photos/seed/track2/400/400", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3" },
+      { title: "Pure Tone", artist: "Minimal Wave", cover: "https://picsum.photos/seed/track3/400/400", src: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3" }
     ];
 
-    // 🔧 DOM-элементы
+    // 🔧 DOM
     const audio = document.getElementById('audio');
     const cover = document.getElementById('cover');
     const coverImg = document.getElementById('cover-img');
@@ -246,11 +278,14 @@
     const durationEl = document.getElementById('duration');
     const volumeSlider = document.getElementById('volume');
     const playIcon = playBtn.querySelector('i');
+    const canvas = document.getElementById('equalizer');
+    const ctx = canvas.getContext('2d');
 
     let currentTrack = 0;
     let isPlaying = false;
+    let audioCtx, analyser, dataArray, source;
 
-    // 📥 Форматирование времени
+    // ⏱️ Формат времени
     const formatTime = (time) => {
       if (isNaN(time)) return '0:00';
       const m = Math.floor(time / 60);
@@ -258,7 +293,7 @@
       return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
 
-    // 🎵 Загрузка трека
+    //  Загрузка трека
     const loadTrack = (index) => {
       const track = playlist[index];
       titleEl.textContent = track.title;
@@ -270,8 +305,47 @@
       durationEl.textContent = '0:00';
     };
 
-    // ▶️⏸️ Переключение воспроизведения
+    // 🎛️ Инициализация Web Audio API (требует жеста пользователя)
+    const initAudioContext = () => {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 128;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+        source = audioCtx.createMediaElementSource(audio);
+        source.connect(analyser);
+        analyser.connect(audioCtx.destination);
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+    };
+
+    // 📊 Отрисовка эквалайзера
+    const drawEqualizer = () => {
+      if (!analyser) return;
+      requestAnimationFrame(drawEqualizer);
+      analyser.getByteFrequencyData(dataArray);
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const barWidth = (canvas.width / dataArray.length) * 2.2;
+      let x = 0;
+      
+      for (let i = 0; i < dataArray.length; i++) {
+        const barHeight = (dataArray[i] / 255) * canvas.height * 0.9;
+        const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
+        gradient.addColorStop(0, '#4f46e5');
+        gradient.addColorStop(1, '#818cf8');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.roundRect(x, canvas.height - barHeight, barWidth - 2, barHeight, 3);
+        ctx.fill();
+        x += barWidth;
+      }
+    };
+
+    // ▶️⏸️ Управление
     const togglePlay = () => {
+      initAudioContext();
       if (isPlaying) audio.pause();
       else audio.play();
     };
@@ -280,53 +354,47 @@
       isPlaying = state;
       playIcon.className = state ? 'fas fa-pause' : 'fas fa-play';
       cover.classList.toggle('playing', state);
+      if (state) drawEqualizer();
     };
 
-    // 🔄 Переключение треков
     const changeTrack = (dir) => {
       currentTrack = (currentTrack + dir + playlist.length) % playlist.length;
       loadTrack(currentTrack);
       if (isPlaying) audio.play();
     };
 
-    // 📊 Обновление прогресса
+    // 📈 События аудио
     audio.addEventListener('timeupdate', () => {
       if (!audio.duration) return;
-      const percent = (audio.currentTime / audio.duration) * 100;
-      progressFill.style.width = `${percent}%`;
+      progressFill.style.width = `${(audio.currentTime / audio.duration) * 100}%`;
       currentTimeEl.textContent = formatTime(audio.currentTime);
     });
 
-    // 📏 Установка длительности
     audio.addEventListener('loadedmetadata', () => {
       durationEl.textContent = formatTime(audio.duration);
       audio.volume = volumeSlider.value;
     });
 
-    // 🖱️ Клик по прогресс-бару
-    progressBar.addEventListener('click', (e) => {
-      if (!audio.duration) return;
-      const rect = progressBar.getBoundingClientRect();
-      const clickX = e.clientX - rect.left;
-      audio.currentTime = (clickX / rect.width) * audio.duration;
-    });
-
-    // 🎚️ Громкость
-    volumeSlider.addEventListener('input', (e) => {
-      audio.volume = e.target.value;
-    });
-
-    // 🔔 События аудио
     audio.addEventListener('play', () => updatePlayState(true));
     audio.addEventListener('pause', () => updatePlayState(false));
     audio.addEventListener('ended', () => changeTrack(1));
 
-    // 🖱️ Кнопки
+    // 🖱️ Интерактив
     playBtn.addEventListener('click', togglePlay);
     prevBtn.addEventListener('click', () => changeTrack(-1));
     nextBtn.addEventListener('click', () => changeTrack(1));
 
-    // 🚀 Инициализация
+    progressBar.addEventListener('click', (e) => {
+      if (!audio.duration) return;
+      const rect = progressBar.getBoundingClientRect();
+      audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+    });
+
+    volumeSlider.addEventListener('input', (e) => {
+      audio.volume = e.target.value;
+    });
+
+    // 🚀 Старт
     loadTrack(currentTrack);
   </script>
 </body>
